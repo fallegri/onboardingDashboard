@@ -9,13 +9,15 @@ import { ok, err } from '../../types/result';
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 /** Allowed file extensions */
-const ALLOWED_EXTENSIONS: readonly string[] = ['.xlsx', '.xls', '.csv'];
+const ALLOWED_EXTENSIONS: readonly string[] = ['.xlsx', '.xls', '.csv', '.docx', '.pdf'];
 
 /** Mapping of file extensions to their expected MIME types */
 const MIME_TYPE_MAP: Record<string, readonly string[]> = {
   '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
   '.xls': ['application/vnd.ms-excel'],
   '.csv': ['text/csv', 'text/plain'],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  '.pdf': ['application/pdf'],
 };
 
 /** Regex patterns for detecting script injection attempts */

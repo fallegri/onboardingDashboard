@@ -133,7 +133,7 @@ export function mapErrorToUserMessage(code: string): Pick<ErrorMessageProps, 'ti
     INVALID_FORMAT: {
       title: 'Formato de archivo no compatible',
       description: 'El archivo seleccionado no es un formato que podamos procesar.',
-      suggestions: ['Usa un archivo Excel (.xlsx, .xls) o CSV (.csv)', 'Verifica que el archivo no esté dañado'],
+      suggestions: ['Usa un archivo Excel (.xlsx, .xls), CSV (.csv), Word (.docx) o PDF (.pdf)', 'Verifica que el archivo no esté dañado'],
     },
     FILE_TOO_LARGE: {
       title: 'El archivo es demasiado grande',

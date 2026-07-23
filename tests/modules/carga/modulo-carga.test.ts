@@ -122,11 +122,11 @@ function createFailingSecurityMock(
 
 describe('Módulo_Carga', () => {
   describe('Constants', () => {
-    it('should expose SUPPORTED_FORMATS as [.xlsx, .xls, .csv]', () => {
+    it('should expose SUPPORTED_FORMATS as [.xlsx, .xls, .csv, .docx, .pdf]', () => {
       const seguridad = createPassingSecurityMock();
       const moduloCarga = createModuloCarga(seguridad);
 
-      expect(moduloCarga.SUPPORTED_FORMATS).toEqual(['.xlsx', '.xls', '.csv']);
+      expect(moduloCarga.SUPPORTED_FORMATS).toEqual(['.xlsx', '.xls', '.csv', '.docx', '.pdf']);
     });
 
     it('should expose MAX_FILE_SIZE as 52,428,800 bytes (50 MB)', () => {

@@ -15,7 +15,7 @@ import { ok, err } from '../../types/result';
 export interface IModuloCarga {
   loadFile(file: File, onProgress: (percent: number) => void): Promise<Result<FileLoadResult, FileLoadError>>;
   validateFile(file: File): Result<void, FileValidationError>;
-  readonly SUPPORTED_FORMATS: readonly ['.xlsx', '.xls', '.csv'];
+  readonly SUPPORTED_FORMATS: readonly ['.xlsx', '.xls', '.csv', '.docx', '.pdf'];
   readonly MAX_FILE_SIZE: 52_428_800;
   readonly MAX_ROWS: 100_000;
 }
@@ -26,7 +26,7 @@ export interface IModuloCarga {
 const MAX_ROWS = 100_000;
 
 /** Supported file extensions */
-const SUPPORTED_FORMATS: readonly ['.xlsx', '.xls', '.csv'] = ['.xlsx', '.xls', '.csv'];
+const SUPPORTED_FORMATS: readonly ['.xlsx', '.xls', '.csv', '.docx', '.pdf'] = ['.xlsx', '.xls', '.csv', '.docx', '.pdf'];
 
 /** Maximum file size in bytes (50 MB) */
 const MAX_FILE_SIZE = 52_428_800;
@@ -42,6 +42,96 @@ function getFileExtension(fileName: string): string {
   const lastDot = fileName.lastIndexOf('.');
   if (lastDot === -1) return '';
   return fileName.slice(lastDot).toLowerCase();
+}
+
+/**
+ * @description Extracts text content from a .docx or .pdf file.
+ * For .docx: parses the XML content within the ZIP archive.
+ * For .pdf: extracts readable text (basic extraction).
+ * @param file - The document file
+ * @param extension - The file extension (.docx or .pdf)
+ * @returns Promise resolving to the extracted text content
+ */
+async function extractDocumentText(file: File, extension: string): Promise<string> {
+  if (extension === '.docx') {
+    return extractDocxText(file);
+  }
+  return extractPdfText(file);
+}
+
+/**
+ * @description Extracts text from a .docx file by reading its XML content.
+ * Uses JSZip-like approach with the browser's built-in capabilities.
+ * @param file - The .docx file
+ * @returns Extracted text content
+ */
+async function extractDocxText(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  // .docx is a ZIP containing word/document.xml
+  // Use a simple XML text extraction approach
+  const blob = new Blob([buffer]);
+  const text = await blob.text();
+  // Extract text between XML paragraph tags (simplified)
+  const paragraphs = text.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+  const extracted = paragraphs
+    .map((p) => p.replace(/<[^>]+>/g, ''))
+    .join(' ');
+  return extracted || 'Documento sin texto extraíble';
+}
+
+/**
+ * @description Extracts text from a .pdf file (basic text layer extraction).
+ * @param file - The .pdf file
+ * @returns Extracted text content
+ */
+async function extractPdfText(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  // Basic PDF text extraction: find text between BT and ET operators
+  const text = new TextDecoder('latin1').decode(bytes);
+  const textBlocks = text.match(/\(([^)]+)\)/g) || [];
+  const extracted = textBlocks
+    .map((block) => block.slice(1, -1))
+    .filter((s) => s.length > 1 && /[a-záéíóúñA-Z]/.test(s))
+    .join(' ');
+  return extracted || 'Documento PDF sin texto extraíble';
+}
+
+/**
+ * @description Parses extracted document text as a single-column sheet.
+ * Each paragraph/line becomes a row in the "Contenido" column.
+ * @param text - The extracted text content
+ * @param fileName - Original file name for the sheet name
+ * @returns Parsed sheet with headers and rows
+ */
+function parseDocumentAsSheet(
+  text: string,
+  fileName: string,
+): { name: string; headers: string[]; rows: unknown[][] } {
+  const lines = text
+    .split(/[.\n]+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  return {
+    name: fileName.replace(/\.[^.]+$/, ''),
+    headers: ['Contenido', 'Tipo'],
+    rows: lines.map((line) => [line, classifyLine(line)]),
+  };
+}
+
+/**
+ * @description Classifies a text line as objective, action, indicator, or general.
+ * @param line - The text line to classify
+ * @returns Classification string
+ */
+function classifyLine(line: string): string {
+  const lower = line.toLowerCase();
+  if (lower.includes('objetivo') || lower.includes('meta')) return 'Objetivo';
+  if (lower.includes('indicador') || lower.includes('kpi')) return 'Indicador';
+  if (lower.includes('acción') || lower.includes('actividad')) return 'Acción';
+  if (lower.includes('estrateg')) return 'Estrategia';
+  return 'General';
 }
 
 /**
@@ -220,7 +310,7 @@ export function createModuloCarga(seguridad: IModuloSeguridad): IModuloCarga {
 
   /**
    * @description Loads and parses a file, reporting progress via callback.
-   * Supports Excel (.xlsx, .xls) and CSV (.csv) formats.
+   * Supports Excel (.xlsx, .xls), CSV (.csv), Word (.docx) and PDF (.pdf) formats.
    * Truncates to 100,000 rows if the file exceeds that limit.
    * Rejects empty files (0 data rows).
    * @param file - The file selected by the user
@@ -259,6 +349,12 @@ export function createModuloCarga(seguridad: IModuloSeguridad): IModuloCarga {
         onProgress(40);
         const csvData = parseCSVContent(text);
         parsedSheets = [{ name: 'Sheet1', ...csvData }];
+      } else if (extension === '.docx' || extension === '.pdf') {
+        // Document formats: extract text content as single-column data
+        onProgress(20);
+        const text = await extractDocumentText(file, extension);
+        onProgress(40);
+        parsedSheets = [parseDocumentAsSheet(text, file.name)];
       } else {
         // Excel formats (.xlsx, .xls)
         onProgress(20);

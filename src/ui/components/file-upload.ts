@@ -1,7 +1,7 @@
 /**
  * @module file-upload
  * @description File upload component with drag-and-drop, progress, and validation.
- * Supports .xlsx, .xls, .csv files up to 50 MB.
+ * Supports .xlsx, .xls, .csv, .docx, .pdf files up to 50 MB.
  * Validates: Requirements 10.1, 10.2, 10.3, 10.5
  */
 
@@ -19,7 +19,7 @@ export interface FileUploadProps {
   maxSize?: number;
 }
 
-const DEFAULT_FORMATS = ['.xlsx', '.xls', '.csv'];
+const DEFAULT_FORMATS = ['.xlsx', '.xls', '.csv', '.docx', '.pdf'];
 const DEFAULT_MAX_SIZE = 52_428_800; // 50 MB
 
 /**
